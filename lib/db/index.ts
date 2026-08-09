@@ -16,7 +16,12 @@ export {
   SegmentSourceUnavailableError,
 } from "../corpus/segments.ts";
 
-export { getIndex, indexesAvailable, linkedSegmentIds, searchIndexes } from "../corpus/indexes.ts";
+export {
+  getIndex,
+  indexesAvailable,
+  linkedSegmentIds,
+  searchIndexes,
+} from "../corpus/indexes.ts";
 export { ask } from "../corpus/retrieval.ts";
 export { composeAnswer } from "../corpus/answer.ts";
 

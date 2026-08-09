@@ -27,7 +27,9 @@ export async function getRelationColumns(
 ): Promise<ColumnInfo[] | null> {
   if (relationCache.has(relation)) return relationCache.get(relation)!;
   const sql = getSql();
-  const rows = await sql<{ column_name: string; data_type: string; udt_name: string }[]>`
+  const rows = await sql<
+    { column_name: string; data_type: string; udt_name: string }[]
+  >`
     SELECT column_name, data_type, udt_name
     FROM information_schema.columns
     WHERE table_schema = ${SCHEMA} AND table_name = ${relation}
@@ -35,13 +37,19 @@ export async function getRelationColumns(
   `;
   const cols: ColumnInfo[] | null = rows.length === 0
     ? null
-    : rows.map((r) => ({ column: r.column_name, dataType: r.data_type, udtName: r.udt_name }));
+    : rows.map((r) => ({
+      column: r.column_name,
+      dataType: r.data_type,
+      udtName: r.udt_name,
+    }));
   relationCache.set(relation, cols);
   return cols;
 }
 
 /** First relation in `candidates` that exists in the corpus schema. */
-export async function resolveRelation(candidates: string[]): Promise<string | null> {
+export async function resolveRelation(
+  candidates: string[],
+): Promise<string | null> {
   for (const name of candidates) {
     if (await getRelationColumns(name)) return name;
   }
@@ -190,7 +198,12 @@ export async function resolveSegmentMap(): Promise<SegmentColumnMap | null> {
       "edition_date",
       "year",
     ]),
-    edition: pickColumn(cols, ["edition", "edition_name", "edition_label", "version"]),
+    edition: pickColumn(cols, [
+      "edition",
+      "edition_name",
+      "edition_label",
+      "version",
+    ]),
     sourceUrl: pickColumn(cols, [
       "source_url",
       "url",

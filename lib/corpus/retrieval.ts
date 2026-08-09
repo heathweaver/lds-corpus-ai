@@ -48,7 +48,9 @@ export async function ask(input: AskInput): Promise<AskResult> {
       }
     }
     if (ids.length > 0) {
-      const fetched = await Promise.all(ids.slice(0, maxSegments).map((id) => getSegmentById(id)));
+      const fetched = await Promise.all(
+        ids.slice(0, maxSegments).map((id) => getSegmentById(id)),
+      );
       segments = fetched.filter((s): s is Segment => s !== null);
       mode = "index";
     }
@@ -74,7 +76,9 @@ export async function ask(input: AskInput): Promise<AskResult> {
     citations,
     scope: {
       mode,
-      indexesFollowed: (mode === "index" ? followed : indexes).map((i) => i.title),
+      indexesFollowed: (mode === "index" ? followed : indexes).map((i) =>
+        i.title
+      ),
       segmentCount: segments.length,
       collection: input.collection ?? null,
       author: input.author ?? null,

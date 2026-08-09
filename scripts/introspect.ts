@@ -1,6 +1,11 @@
 #!/usr/bin/env -S deno run -A
 import "../lib/env/load.ts";
-import { closePool, getSql, isDbConfigured, SCHEMA } from "../lib/db/postgres-base.ts";
+import {
+  closePool,
+  getSql,
+  isDbConfigured,
+  SCHEMA,
+} from "../lib/db/postgres-base.ts";
 import {
   getRelationColumns,
   INDEX_RELATED_LINK_CANDIDATES,
@@ -38,14 +43,20 @@ const rels = await sql<{ table_name: string; table_type: string }[]>`
   WHERE table_schema = ${SCHEMA}
   ORDER BY table_type, table_name
 `;
-for (const r of rels) console.log(`  ${r.table_type.padEnd(10)} ${r.table_name}`);
+for (const r of rels) {
+  console.log(`  ${r.table_type.padEnd(10)} ${r.table_name}`);
+}
 
 async function describe(relation: string | null, label: string) {
   console.log(`\n=== ${label}: ${relation ?? "(none found)"} ===`);
   if (!relation) return;
   const cols = await getRelationColumns(relation);
   for (const c of cols ?? []) {
-    console.log(`  ${c.column.padEnd(28)} ${c.dataType}${c.udtName ? ` (${c.udtName})` : ""}`);
+    console.log(
+      `  ${c.column.padEnd(28)} ${c.dataType}${
+        c.udtName ? ` (${c.udtName})` : ""
+      }`,
+    );
   }
 }
 
@@ -64,7 +75,9 @@ await describe(relLink, "Index→related-index link");
 console.log(`\n=== Resolved segment column map ===`);
 const map = await resolveSegmentMap();
 if (!map) {
-  console.log("  Could not resolve a usable segment view (need at least id + text columns).");
+  console.log(
+    "  Could not resolve a usable segment view (need at least id + text columns).",
+  );
 } else {
   for (const [field, col] of Object.entries(map)) {
     console.log(`  ${field.padEnd(14)} -> ${col ?? "(unresolved)"}`);
@@ -72,7 +85,9 @@ if (!map) {
   const unresolved = Object.entries(map).filter(([, v]) => !v).map(([k]) => k);
   if (unresolved.length) {
     console.log(`\n  Unresolved fields: ${unresolved.join(", ")}`);
-    console.log(`  Add the real column names to the candidate lists in lib/db/corpus-introspect.ts`);
+    console.log(
+      `  Add the real column names to the candidate lists in lib/db/corpus-introspect.ts`,
+    );
   }
 }
 

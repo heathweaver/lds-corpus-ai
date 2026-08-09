@@ -9,7 +9,10 @@ export const handler = define.handlers({
     return withApiErrors(async () => {
       const url = new URL(ctx.req.url);
       const limit = url.searchParams.get("limit");
-      const doc = await getDocument(ctx.params.id, limit ? parseInt(limit, 10) : 1000);
+      const doc = await getDocument(
+        ctx.params.id,
+        limit ? parseInt(limit, 10) : 1000,
+      );
       if (!doc) return notFound(`Document ${ctx.params.id} not found.`);
       return Response.json(doc);
     });

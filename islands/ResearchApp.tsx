@@ -57,7 +57,13 @@ async function getJson<T>(url: string, init?: RequestInit): Promise<T> {
   return res.json() as Promise<T>;
 }
 
-function sourceLine(s: { documentTitle: string | null; reference: string | null; author: string | null }) {
+function sourceLine(
+  s: {
+    documentTitle: string | null;
+    reference: string | null;
+    author: string | null;
+  },
+) {
   return [s.documentTitle, s.reference].filter(Boolean).join(", ") +
     (s.author ? ` — ${s.author}` : "");
 }
@@ -111,14 +117,18 @@ export default function ResearchApp() {
   async function openSegment(id: string) {
     setError(null);
     try {
-      setSource(await getJson<SegmentContext>(`/segments/${encodeURIComponent(id)}`));
+      setSource(
+        await getJson<SegmentContext>(`/segments/${encodeURIComponent(id)}`),
+      );
     } catch (err) {
       setError((err as Error).message);
     }
   }
 
   async function copyLink(segmentId: string) {
-    const url = `${globalThis.location.origin}/segments/${encodeURIComponent(segmentId)}`;
+    const url = `${globalThis.location.origin}/segments/${
+      encodeURIComponent(segmentId)
+    }`;
     try {
       await navigator.clipboard.writeText(url);
       setCopied(segmentId);
@@ -134,14 +144,16 @@ export default function ResearchApp() {
         <form onSubmit={submitAsk} class="ask-form">
           <textarea
             value={question}
-            onInput={(e) => setQuestion((e.target as HTMLTextAreaElement).value)}
+            onInput={(e) =>
+              setQuestion((e.target as HTMLTextAreaElement).value)}
             placeholder="Ask a research question…"
             rows={3}
           />
           <div class="filters">
             <input
               value={collection}
-              onInput={(e) => setCollection((e.target as HTMLInputElement).value)}
+              onInput={(e) =>
+                setCollection((e.target as HTMLInputElement).value)}
               placeholder="Collection (optional)"
             />
             <input
@@ -164,7 +176,7 @@ export default function ResearchApp() {
               Retrieval: <strong>{result.scope.mode}</strong> ·{" "}
               {result.scope.segmentCount} segment(s)
               {result.scope.indexesFollowed.length > 0 &&
-                <> · via {result.scope.indexesFollowed.join(", ")}</>}
+                <>· via {result.scope.indexesFollowed.join(", ")}</>}
             </div>
             {result.citations.length > 0 && (
               <div class="citations">
@@ -172,11 +184,17 @@ export default function ResearchApp() {
                 <ol>
                   {result.citations.map((c) => (
                     <li key={c.segmentId}>
-                      <button class="link" onClick={() => openSegment(c.segmentId)}>
+                      <button
+                        type="button"
+                        class="link"
+                        onClick={() => openSegment(c.segmentId)}
+                      >
                         {sourceLine(c) || "source"}
                       </button>
-                      <blockquote>{c.quote.slice(0, 220)}
-                        {c.quote.length > 220 ? "…" : ""}</blockquote>
+                      <blockquote>
+                        {c.quote.slice(0, 220)}
+                        {c.quote.length > 220 ? "…" : ""}
+                      </blockquote>
                     </li>
                   ))}
                 </ol>
@@ -189,16 +207,28 @@ export default function ResearchApp() {
       {/* Pane 2: Indexes */}
       <section class="pane pane-indexes">
         <h2>Indexes</h2>
-        {!result && <p class="muted">Theme indexes that guided retrieval appear here.</p>}
+        {!result && (
+          <p class="muted">Theme indexes that guided retrieval appear here.</p>
+        )}
         {result && result.indexes.length === 0 && (
-          <p class="muted">No theme indexes matched — searched sources directly.</p>
+          <p class="muted">
+            No theme indexes matched — searched sources directly.
+          </p>
         )}
         {result && result.indexes.length > 0 && (
           <ul class="index-list">
             {result.indexes.map((idx) => (
               <li key={idx.id}>
-                <button class="link" onClick={() => openIndex(idx.id)}>{idx.title}</button>
-                {idx.note && <p class="muted small">{idx.note.slice(0, 120)}</p>}
+                <button
+                  type="button"
+                  class="link"
+                  onClick={() => openIndex(idx.id)}
+                >
+                  {idx.title}
+                </button>
+                {idx.note && (
+                  <p class="muted small">{idx.note.slice(0, 120)}</p>
+                )}
               </li>
             ))}
           </ul>
@@ -214,7 +244,13 @@ export default function ResearchApp() {
                 <ul>
                   {index.related.map((r) => (
                     <li key={r.id}>
-                      <button class="link" onClick={() => openIndex(r.id)}>{r.title}</button>
+                      <button
+                        type="button"
+                        class="link"
+                        onClick={() => openIndex(r.id)}
+                      >
+                        {r.title}
+                      </button>
                     </li>
                   ))}
                 </ul>
@@ -226,7 +262,13 @@ export default function ResearchApp() {
                 <ul>
                   {index.segmentIds.map((sid) => (
                     <li key={sid}>
-                      <button class="link" onClick={() => openSegment(sid)}>Segment {sid}</button>
+                      <button
+                        type="button"
+                        class="link"
+                        onClick={() => openSegment(sid)}
+                      >
+                        Segment {sid}
+                      </button>
                     </li>
                   ))}
                 </ul>
@@ -239,21 +281,39 @@ export default function ResearchApp() {
       {/* Pane 3: Source */}
       <section class="pane pane-source">
         <h2>Source</h2>
-        {!source && <p class="muted">Select a citation or segment to read it in context.</p>}
+        {!source && (
+          <p class="muted">
+            Select a citation or segment to read it in context.
+          </p>
+        )}
         {source && (
           <div class="source-reader">
             <div class="source-meta">
               <strong>{source.segment.documentTitle ?? "Untitled"}</strong>
               <div class="muted small">
-                {[source.segment.author, source.segment.date, source.segment.edition]
+                {[
+                  source.segment.author,
+                  source.segment.date,
+                  source.segment.edition,
+                ]
                   .filter(Boolean).join(" · ")}
-                {source.segment.reference && <> · {source.segment.reference}</>}
+                {source.segment.reference && <>· {source.segment.reference}</>}
               </div>
               <div class="source-actions">
                 {source.segment.sourceUrl && (
-                  <a href={source.segment.sourceUrl} target="_blank" rel="noopener">Source link ↗</a>
+                  <a
+                    href={source.segment.sourceUrl}
+                    target="_blank"
+                    rel="noopener"
+                  >
+                    Source link ↗
+                  </a>
                 )}
-                <button class="link" onClick={() => copyLink(source.segment.id)}>
+                <button
+                  type="button"
+                  class="link"
+                  onClick={() => copyLink(source.segment.id)}
+                >
                   {copied === source.segment.id ? "Copied!" : "Copy link"}
                 </button>
               </div>

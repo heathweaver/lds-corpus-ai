@@ -54,7 +54,8 @@ const COMPOSE_TOOL: Anthropic.Tool = {
     properties: {
       answer: {
         type: "string",
-        description: "Concise answer grounded only in the provided segments, with [n] citations.",
+        description:
+          "Concise answer grounded only in the provided segments, with [n] citations.",
       },
       cited_segments: {
         type: "array",
@@ -69,7 +70,9 @@ const COMPOSE_TOOL: Anthropic.Tool = {
 
 function renderSegments(segments: Segment[]): string {
   return segments
-    .map((s, i) => `[${i + 1}] (${sourceLabel(s)})\n${s.text.slice(0, SEGMENT_CHAR_CAP)}`)
+    .map((s, i) =>
+      `[${i + 1}] (${sourceLabel(s)})\n${s.text.slice(0, SEGMENT_CHAR_CAP)}`
+    )
     .join("\n\n");
 }
 
@@ -82,19 +85,29 @@ async function synthesizeWithClaude(
   const res = await client.messages.create({
     model,
     max_tokens: 1024,
-    system: [{ type: "text", text: SYSTEM_PROMPT, cache_control: { type: "ephemeral" } }],
+    system: [{
+      type: "text",
+      text: SYSTEM_PROMPT,
+      cache_control: { type: "ephemeral" },
+    }],
     tools: [COMPOSE_TOOL],
     tool_choice: { type: "tool", name: "compose_answer" },
     messages: [{
       role: "user",
-      content: `Question: ${question}\n\nSource segments:\n\n${renderSegments(segments)}`,
+      content: `Question: ${question}\n\nSource segments:\n\n${
+        renderSegments(segments)
+      }`,
     }],
   });
   const block = res.content.find((b) => b.type === "tool_use") as
     | Anthropic.ToolUseBlock
     | undefined;
-  const input = (block?.input ?? {}) as { answer?: string; cited_segments?: number[] };
-  const answer = input.answer?.trim() || "No answer could be composed from the sources.";
+  const input = (block?.input ?? {}) as {
+    answer?: string;
+    cited_segments?: number[];
+  };
+  const answer = input.answer?.trim() ||
+    "No answer could be composed from the sources.";
   const cited = (input.cited_segments ?? [])
     .filter((n) => Number.isInteger(n) && n >= 1 && n <= segments.length)
     .map((n) => segments[n - 1]);
@@ -102,20 +115,30 @@ async function synthesizeWithClaude(
   return { answer, citations: used.map(citationFor) };
 }
 
-function extractiveAnswer(question: string, segments: Segment[]): ComposedAnswer {
+function extractiveAnswer(
+  _question: string,
+  segments: Segment[],
+): ComposedAnswer {
   const top = segments.slice(0, 3);
   if (top.length === 0) {
     return {
-      answer: `No source segments matched this question. Try rephrasing or broadening the scope.`,
+      answer:
+        `No source segments matched this question. Try rephrasing or broadening the scope.`,
       citations: [],
     };
   }
   const lead =
-    `Drawing on ${segments.length} matching source segment${segments.length === 1 ? "" : "s"}, ` +
+    `Drawing on ${segments.length} matching source segment${
+      segments.length === 1 ? "" : "s"
+    }, ` +
     `the most relevant passages are:`;
   const body = top
-    .map((s, i) => `[${i + 1}] ${s.text.slice(0, 400).trim()}${s.text.length > 400 ? "…" : ""} ` +
-      `(${sourceLabel(s)})`)
+    .map((s, i) =>
+      `[${i + 1}] ${s.text.slice(0, 400).trim()}${
+        s.text.length > 400 ? "…" : ""
+      } ` +
+      `(${sourceLabel(s)})`
+    )
     .join("\n\n");
   return {
     answer: `${lead}\n\n${body}`,

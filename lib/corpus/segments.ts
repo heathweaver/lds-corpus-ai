@@ -1,11 +1,22 @@
 import { getSql } from "../db/postgres-base.ts";
-import { qi, resolveSegmentMap, type SegmentColumnMap } from "../db/corpus-introspect.ts";
-import type { DocumentDetail, Segment, SegmentContext, SearchFilters } from "./types.ts";
+import {
+  qi,
+  resolveSegmentMap,
+  type SegmentColumnMap,
+} from "../db/corpus-introspect.ts";
+import type {
+  DocumentDetail,
+  SearchFilters,
+  Segment,
+  SegmentContext,
+} from "./types.ts";
 
 /** Thrown when the corpus segment view cannot be resolved in the schema. */
 export class SegmentSourceUnavailableError extends Error {
   constructor() {
-    super("No segment source view (e.g. v_segment_source) found in the schema.");
+    super(
+      "No segment source view (e.g. v_segment_source) found in the schema.",
+    );
     this.name = "SegmentSourceUnavailableError";
   }
 }
@@ -67,7 +78,9 @@ function toSegment(r: RawRow): Segment {
 
 /** tsvector expression for the resolved view (real column or built inline). */
 function tsvExpr(m: SegmentColumnMap): string {
-  return m.tsv ? qi(m.tsv) : `to_tsvector('english', coalesce(${qi(m.text)}::text, ''))`;
+  return m.tsv
+    ? qi(m.tsv)
+    : `to_tsvector('english', coalesce(${qi(m.text)}::text, ''))`;
 }
 
 /**
@@ -76,7 +89,9 @@ function tsvExpr(m: SegmentColumnMap): string {
  * All interpolated identifiers come from introspection (validated by qi()),
  * never from user input; user values are bound as positional params.
  */
-export async function searchSegments(filters: SearchFilters): Promise<Segment[]> {
+export async function searchSegments(
+  filters: SearchFilters,
+): Promise<Segment[]> {
   const m = await requireMap();
   const sql = getSql();
   const limit = Math.min(filters.limit ?? 50, 200);
@@ -94,7 +109,9 @@ export async function searchSegments(filters: SearchFilters): Promise<Segment[]>
   if (q) {
     add(`${tsvExpr(m)} @@ websearch_to_tsquery('english', $?)`, q);
     // Reuse the same param index for ranking.
-    rankExpr = `ts_rank_cd(${tsvExpr(m)}, websearch_to_tsquery('english', $${params.length}))`;
+    rankExpr = `ts_rank_cd(${
+      tsvExpr(m)
+    }, websearch_to_tsquery('english', $${params.length}))`;
   }
   if (filters.collection && m.collection) {
     add(`${qi(m.collection)}::text ILIKE $?`, `%${filters.collection}%`);
@@ -102,8 +119,12 @@ export async function searchSegments(filters: SearchFilters): Promise<Segment[]>
   if (filters.author && m.author) {
     add(`${qi(m.author)}::text ILIKE $?`, `%${filters.author}%`);
   }
-  if (filters.dateFrom && m.date) add(`${qi(m.date)}::text >= $?`, filters.dateFrom);
-  if (filters.dateTo && m.date) add(`${qi(m.date)}::text <= $?`, filters.dateTo);
+  if (filters.dateFrom && m.date) {
+    add(`${qi(m.date)}::text >= $?`, filters.dateFrom);
+  }
+  if (filters.dateTo && m.date) {
+    add(`${qi(m.date)}::text <= $?`, filters.dateTo);
+  }
 
   const where = conds.length ? `WHERE ${conds.join("\n  AND ")}` : "";
   const orderBy = q
@@ -126,7 +147,9 @@ export async function searchSegments(filters: SearchFilters): Promise<Segment[]>
 export async function getSegmentById(id: string): Promise<Segment | null> {
   const m = await requireMap();
   const sql = getSql();
-  const text = `SELECT ${selectList(m)} FROM ${qi(m.relation)} WHERE ${qi(m.id)} = $1 LIMIT 1`;
+  const text = `SELECT ${selectList(m)} FROM ${qi(m.relation)} WHERE ${
+    qi(m.id)
+  } = $1 LIMIT 1`;
   const rows = await sql.unsafe(text, [id] as never[]) as unknown as RawRow[];
   return rows[0] ? toSegment(rows[0]) : null;
 }
@@ -135,11 +158,17 @@ export async function getSegmentById(id: string): Promise<Segment | null> {
  * A segment plus the segments immediately around it (same document, adjacent
  * ordinals). Falls back to just the segment when ordering info is unavailable.
  */
-export async function getSegmentContext(id: string, window = 3): Promise<SegmentContext | null> {
+export async function getSegmentContext(
+  id: string,
+  window = 3,
+): Promise<SegmentContext | null> {
   const m = await requireMap();
   const segment = await getSegmentById(id);
   if (!segment) return null;
-  if (!m.documentId || !m.ordinal || segment.documentId == null || segment.ordinal == null) {
+  if (
+    !m.documentId || !m.ordinal || segment.documentId == null ||
+    segment.ordinal == null
+  ) {
     return { segment, before: [], after: [] };
   }
   const sql = getSql();
@@ -166,7 +195,10 @@ export async function getSegmentContext(id: string, window = 3): Promise<Segment
 }
 
 /** A document's metadata plus its ordered segments. */
-export async function getDocument(id: string, limit = 1000): Promise<DocumentDetail | null> {
+export async function getDocument(
+  id: string,
+  limit = 1000,
+): Promise<DocumentDetail | null> {
   const m = await requireMap();
   if (!m.documentId) return null;
   const sql = getSql();

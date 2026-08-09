@@ -6,7 +6,8 @@ export default function Home() {
       <header class="app-header">
         <h1>LDS Corpus Research</h1>
         <p class="tagline">
-          Ask a question, see which theme indexes guided retrieval, and inspect the sources.
+          Ask a question, see which theme indexes guided retrieval, and inspect
+          the sources.
         </p>
       </header>
       <ResearchApp />

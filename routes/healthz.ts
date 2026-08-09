@@ -5,6 +5,9 @@ import { isDbConfigured } from "../lib/db/postgres-base.ts";
 // the body reports whether DB credentials are present.
 export const handler = define.handlers({
   GET() {
-    return Response.json({ status: "ok", db: isDbConfigured() ? "configured" : "unconfigured" });
+    return Response.json({
+      status: "ok",
+      db: isDbConfigured() ? "configured" : "unconfigured",
+    });
   },
 });

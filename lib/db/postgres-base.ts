@@ -86,9 +86,11 @@ export function getSql(): postgres.Sql {
   const cfg = buildConfig();
   if (!cfg) throw new DbNotConfiguredError();
   if ("url" in cfg && typeof (cfg as { url?: string }).url === "string") {
-    const { url, ...opts } = cfg as unknown as { url: string } & postgres.Options<
-      Record<string, never>
-    >;
+    const { url, ...opts } = cfg as unknown as
+      & { url: string }
+      & postgres.Options<
+        Record<string, never>
+      >;
     _sql = postgres(url, opts);
   } else {
     _sql = postgres(cfg);
@@ -102,7 +104,9 @@ export function isDbConfigured(): boolean {
 }
 
 /** Run a read-only operation with the pooled connection. */
-export function withClient<T>(op: (sql: postgres.Sql) => Promise<T>): Promise<T> {
+export function withClient<T>(
+  op: (sql: postgres.Sql) => Promise<T>,
+): Promise<T> {
   return op(getSql());
 }
 

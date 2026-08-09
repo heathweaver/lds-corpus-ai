@@ -6,6 +6,6 @@ Opt in per-clone:
 git config core.hooksPath .githooks
 ```
 
-- **pre-commit** — runs `deno task gate:precommit` (`deno fmt --check`, `deno lint`,
-  `deno check`). Blocks the commit on failure. Bypass once with
+- **pre-commit** — runs `deno task gate:precommit` (`deno fmt --check`,
+  `deno lint`, `deno check`). Blocks the commit on failure. Bypass once with
   `git commit --no-verify`.
