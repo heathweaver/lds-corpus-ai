@@ -190,6 +190,7 @@ export async function resolveSegmentMap(): Promise<SegmentColumnMap | null> {
       "creator",
     ]),
     date: pickColumn(cols, [
+      "publication_start",
       "date",
       "pub_date",
       "published_at",
@@ -213,6 +214,7 @@ export async function resolveSegmentMap(): Promise<SegmentColumnMap | null> {
       "provenance_url",
     ]),
     reference: pickColumn(cols, [
+      "segment_key",
       "reference",
       "ref",
       "citation",

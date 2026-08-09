@@ -1,9 +1,4 @@
 import { getSql } from "../db/postgres-base.ts";
-import {
-  qi,
-  resolveSegmentMap,
-  type SegmentColumnMap,
-} from "../db/corpus-introspect.ts";
 import type {
   DocumentDetail,
   SearchFilters,
@@ -11,45 +6,77 @@ import type {
   SegmentContext,
 } from "./types.ts";
 
-/** Thrown when the corpus segment view cannot be resolved in the schema. */
+/**
+ * Segment access over `lds_corpus.v_segment_source` (the spec's sanctioned
+ * search surface), enriched with columns the view doesn't expose:
+ *  - author  ← contribution → agent.preferred_name (LATERAL)
+ *  - edition ← document.edition_label
+ *  - source_url ← first entry of the view's `sources` jsonb
+ *  - ordinal ← content_node.sequence (reading order)
+ * Full-text search uses the indexed `segment.search_vector` tsvector.
+ *
+ * search_path is pinned to lds_corpus (see postgres-base.ts), so relation
+ * names are unqualified. SQL is static with positional params — no dynamic
+ * identifiers.
+ */
+
+/** Thrown when the corpus segment view is absent from the schema. */
 export class SegmentSourceUnavailableError extends Error {
   constructor() {
     super(
-      "No segment source view (e.g. v_segment_source) found in the schema.",
+      "No segment source view (lds_corpus.v_segment_source) found in the schema.",
     );
     this.name = "SegmentSourceUnavailableError";
   }
 }
 
-async function requireMap(): Promise<SegmentColumnMap> {
-  const map = await resolveSegmentMap();
-  if (!map) throw new SegmentSourceUnavailableError();
-  return map;
+let _viewExists: boolean | undefined;
+async function requireView(): Promise<void> {
+  if (_viewExists === undefined) {
+    const sql = getSql();
+    const [row] = await sql<{ reg: string | null }[]>`
+      SELECT to_regclass('lds_corpus.v_segment_source')::text AS reg
+    `;
+    _viewExists = !!row?.reg;
+  }
+  if (!_viewExists) throw new SegmentSourceUnavailableError();
 }
 
-/** SELECT list that aliases resolved columns to stable output names. */
-function selectList(m: SegmentColumnMap): string {
-  const col = (c: string | undefined, alias: string) =>
-    c ? `${qi(c)} AS ${alias}` : `NULL AS ${alias}`;
-  return [
-    `${qi(m.id)} AS id`,
-    `${qi(m.text)} AS text`,
-    col(m.documentId, "document_id"),
-    col(m.documentTitle, "document_title"),
-    col(m.author, "author"),
-    col(m.date, "date"),
-    col(m.edition, "edition"),
-    col(m.sourceUrl, "source_url"),
-    col(m.reference, "reference"),
-    col(m.collection, "collection"),
-    col(m.ordinal, "ordinal"),
-  ].join(", ");
-}
+// Shared projection + enrichment joins. `vs` is the segment source row.
+const SELECT = `
+  vs.segment_id::text          AS id,
+  vs.text                      AS text,
+  vs.document_id::text         AS document_id,
+  vs.document_title            AS document_title,
+  au.author                    AS author,
+  vs.publication_start::text   AS date,
+  d.edition_label              AS edition,
+  (vs.sources -> 0 ->> 'source_url') AS source_url,
+  vs.segment_key               AS reference,
+  vs.work_title                AS collection,
+  ord.seq::float8              AS ordinal
+`;
+
+const JOINS = `
+  JOIN document d ON d.id = vs.document_id
+  LEFT JOIN LATERAL (
+    SELECT string_agg(DISTINCT a.preferred_name, ', ') AS author
+    FROM contribution c
+    JOIN agent a ON a.id = c.agent_id
+    WHERE c.document_id = vs.document_id
+  ) au ON true
+  LEFT JOIN LATERAL (
+    SELECT min(cn.sequence) AS seq
+    FROM segment_node sn
+    JOIN content_node cn ON cn.id = sn.content_node_id
+    WHERE sn.segment_id = vs.segment_id
+  ) ord ON true
+`;
 
 interface RawRow {
-  id: string | number;
+  id: string;
   text: string | null;
-  document_id: string | number | null;
+  document_id: string | null;
   document_title: string | null;
   author: string | null;
   date: string | null;
@@ -57,14 +84,14 @@ interface RawRow {
   source_url: string | null;
   reference: string | null;
   collection: string | null;
-  ordinal: number | string | null;
+  ordinal: number | null;
 }
 
 function toSegment(r: RawRow): Segment {
   return {
     id: String(r.id),
     text: r.text ?? "",
-    documentId: r.document_id == null ? null : String(r.document_id),
+    documentId: r.document_id,
     documentTitle: r.document_title,
     author: r.author,
     date: r.date,
@@ -76,23 +103,15 @@ function toSegment(r: RawRow): Segment {
   };
 }
 
-/** tsvector expression for the resolved view (real column or built inline). */
-function tsvExpr(m: SegmentColumnMap): string {
-  return m.tsv
-    ? qi(m.tsv)
-    : `to_tsvector('english', coalesce(${qi(m.text)}::text, ''))`;
-}
-
 /**
- * Full-text + faceted search over the segment source view. Mirrors the
- * dynamic-WHERE builder from twiglit-notes queries.ts (`$?`→`$N` + sql.unsafe).
- * All interpolated identifiers come from introspection (validated by qi()),
- * never from user input; user values are bound as positional params.
+ * Full-text + faceted search. Mirrors the dynamic-WHERE builder from
+ * twiglit-notes queries.ts (`$?`→`$N` + sql.unsafe). Uses the indexed
+ * segment.search_vector for FTS and ts_rank_cd for ranking.
  */
 export async function searchSegments(
   filters: SearchFilters,
 ): Promise<Segment[]> {
-  const m = await requireMap();
+  await requireView();
   const sql = getSql();
   const limit = Math.min(filters.limit ?? 50, 200);
 
@@ -105,37 +124,35 @@ export async function searchSegments(
   };
 
   const q = filters.q?.trim();
-  let rankExpr = "NULL";
+  const needSegmentJoin = !!q;
+  let rank = "NULL";
   if (q) {
-    add(`${tsvExpr(m)} @@ websearch_to_tsquery('english', $?)`, q);
-    // Reuse the same param index for ranking.
-    rankExpr = `ts_rank_cd(${
-      tsvExpr(m)
-    }, websearch_to_tsquery('english', $${params.length}))`;
+    add(`s.search_vector @@ websearch_to_tsquery('english', $?)`, q);
+    rank =
+      `ts_rank_cd(s.search_vector, websearch_to_tsquery('english', $${params.length}))`;
   }
-  if (filters.collection && m.collection) {
-    add(`${qi(m.collection)}::text ILIKE $?`, `%${filters.collection}%`);
+  if (filters.collection) {
+    add(`vs.work_title ILIKE $?`, `%${filters.collection}%`);
   }
-  if (filters.author && m.author) {
-    add(`${qi(m.author)}::text ILIKE $?`, `%${filters.author}%`);
+  if (filters.author) add(`au.author ILIKE $?`, `%${filters.author}%`);
+  if (filters.dateFrom) {
+    add(`vs.publication_start >= $?::date`, filters.dateFrom);
   }
-  if (filters.dateFrom && m.date) {
-    add(`${qi(m.date)}::text >= $?`, filters.dateFrom);
-  }
-  if (filters.dateTo && m.date) {
-    add(`${qi(m.date)}::text <= $?`, filters.dateTo);
-  }
+  if (filters.dateTo) add(`vs.publication_start <= $?::date`, filters.dateTo);
 
   const where = conds.length ? `WHERE ${conds.join("\n  AND ")}` : "";
   const orderBy = q
     ? "ORDER BY _rank DESC NULLS LAST"
-    : m.ordinal
-    ? `ORDER BY ${qi(m.ordinal)} ASC`
+    : "ORDER BY ord.seq ASC NULLS LAST, vs.segment_key ASC";
+  const segmentJoin = needSegmentJoin
+    ? "JOIN segment s ON s.id = vs.segment_id"
     : "";
 
   const text = `
-    SELECT ${selectList(m)}, ${rankExpr} AS _rank
-    FROM ${qi(m.relation)}
+    SELECT ${SELECT}, ${rank} AS _rank
+    FROM v_segment_source vs
+    ${segmentJoin}
+    ${JOINS}
     ${where}
     ${orderBy}
     LIMIT ${limit}
@@ -145,53 +162,68 @@ export async function searchSegments(
 }
 
 export async function getSegmentById(id: string): Promise<Segment | null> {
-  const m = await requireMap();
+  await requireView();
   const sql = getSql();
-  const text = `SELECT ${selectList(m)} FROM ${qi(m.relation)} WHERE ${
-    qi(m.id)
-  } = $1 LIMIT 1`;
+  const text = `
+    SELECT ${SELECT}
+    FROM v_segment_source vs
+    ${JOINS}
+    WHERE vs.segment_id = $1
+    LIMIT 1
+  `;
   const rows = await sql.unsafe(text, [id] as never[]) as unknown as RawRow[];
   return rows[0] ? toSegment(rows[0]) : null;
 }
 
 /**
- * A segment plus the segments immediately around it (same document, adjacent
- * ordinals). Falls back to just the segment when ordering info is unavailable.
+ * A segment plus the segments immediately around it, following the
+ * segment.previous_segment_id / next_segment_id reading-order chain (exact,
+ * cheap — 2·window rows).
  */
 export async function getSegmentContext(
   id: string,
   window = 3,
 ): Promise<SegmentContext | null> {
-  const m = await requireMap();
+  await requireView();
   const segment = await getSegmentById(id);
   if (!segment) return null;
-  if (
-    !m.documentId || !m.ordinal || segment.documentId == null ||
-    segment.ordinal == null
-  ) {
-    return { segment, before: [], after: [] };
-  }
   const sql = getSql();
   const text = `
-    SELECT ${selectList(m)}
-    FROM ${qi(m.relation)}
-    WHERE ${qi(m.documentId)} = $1
-      AND ${qi(m.ordinal)} BETWEEN $2 AND $3
-      AND ${qi(m.id)} <> $4
-    ORDER BY ${qi(m.ordinal)} ASC
+    WITH RECURSIVE back AS (
+      SELECT id, previous_segment_id, 0 AS dist FROM segment WHERE id = $1
+      UNION ALL
+      SELECT s.id, s.previous_segment_id, back.dist + 1
+      FROM segment s JOIN back ON s.id = back.previous_segment_id
+      WHERE back.dist < $2
+    ),
+    fwd AS (
+      SELECT id, next_segment_id, 0 AS dist FROM segment WHERE id = $1
+      UNION ALL
+      SELECT s.id, s.next_segment_id, fwd.dist + 1
+      FROM segment s JOIN fwd ON s.id = fwd.next_segment_id
+      WHERE fwd.dist < $2
+    ),
+    nbr AS (
+      SELECT id, -dist AS pos FROM back WHERE dist > 0
+      UNION
+      SELECT id, dist AS pos FROM fwd WHERE dist > 0
+    )
+    SELECT ${SELECT}, nbr.pos AS _pos
+    FROM nbr
+    JOIN v_segment_source vs ON vs.segment_id = nbr.id
+    ${JOINS}
+    ORDER BY nbr.pos ASC
   `;
-  const rows = await sql.unsafe(text, [
-    segment.documentId,
-    segment.ordinal - window,
-    segment.ordinal + window,
-    id,
-  ] as never[]) as unknown as RawRow[];
-  const neighbors = rows.map(toSegment);
-  return {
-    segment,
-    before: neighbors.filter((s) => (s.ordinal ?? 0) < (segment.ordinal ?? 0)),
-    after: neighbors.filter((s) => (s.ordinal ?? 0) > (segment.ordinal ?? 0)),
-  };
+  const rows = await sql.unsafe(text, [id, window] as never[]) as unknown as
+    & RawRow[]
+    & { _pos: number }[];
+  const before: Segment[] = [];
+  const after: Segment[] = [];
+  for (const r of rows) {
+    const pos = (r as unknown as { _pos: number })._pos;
+    (pos < 0 ? before : after).push(toSegment(r));
+  }
+  return { segment, before, after };
 }
 
 /** A document's metadata plus its ordered segments. */
@@ -199,15 +231,14 @@ export async function getDocument(
   id: string,
   limit = 1000,
 ): Promise<DocumentDetail | null> {
-  const m = await requireMap();
-  if (!m.documentId) return null;
+  await requireView();
   const sql = getSql();
-  const orderBy = m.ordinal ? `ORDER BY ${qi(m.ordinal)} ASC` : "";
   const text = `
-    SELECT ${selectList(m)}
-    FROM ${qi(m.relation)}
-    WHERE ${qi(m.documentId)} = $1
-    ${orderBy}
+    SELECT ${SELECT}
+    FROM v_segment_source vs
+    ${JOINS}
+    WHERE vs.document_id = $1
+    ORDER BY ord.seq ASC NULLS LAST, vs.segment_key ASC
     LIMIT ${Math.min(limit, 5000)}
   `;
   const rows = await sql.unsafe(text, [id] as never[]) as unknown as RawRow[];
