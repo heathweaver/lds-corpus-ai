@@ -1,0 +1,37 @@
+{
+  "lock": false,
+  "tasks": {
+    "start": "deno run -A --watch=static/,routes/ dev.ts",
+    "build": "deno run -A dev.ts build",
+    "preview": "deno run -A main.ts",
+    "manifest": "deno run -A dev.ts manifest",
+    "check": "deno check **/*.ts && deno check **/*.tsx",
+    "introspect": "deno run --allow-net --allow-env --allow-read scripts/introspect.ts"
+  },
+  "lint": {
+    "rules": { "tags": ["fresh", "recommended"] },
+    "exclude": ["_fresh"]
+  },
+  "fmt": {
+    "exclude": ["_fresh", "**/*.md"],
+    "lineWidth": 100,
+    "semiColons": true
+  },
+  "exclude": ["**/_fresh/*"],
+  "imports": {
+    "$fresh/": "https://deno.land/x/fresh@1.7.3/",
+    "preact": "https://esm.sh/preact@10.22.0",
+    "preact/": "https://esm.sh/preact@10.22.0/",
+    "@preact/signals": "https://esm.sh/*@preact/signals@1.2.2",
+    "@preact/signals-core": "https://esm.sh/*@preact/signals-core@1.5.1",
+    "postgres": "npm:postgres@^3.4.5",
+    "@std/dotenv/load": "jsr:@std/dotenv@^0.225.2/load"
+  },
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "jsxImportSource": "preact"
+  },
+  "deploy": {
+    "entrypoint": "main.ts"
+  }
+}
