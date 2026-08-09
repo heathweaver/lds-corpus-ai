@@ -2,9 +2,11 @@
   "nodeModulesDir": "manual",
   "tasks": {
     "check": "deno fmt --check . && deno lint . && deno check",
+    "gate:precommit": "deno task check",
     "dev": "vite",
     "build": "vite build",
     "start": "deno serve -A _fresh/server.js",
+    "preview": "deno serve -A _fresh/server.js",
     "update": "deno run -A -r jsr:@fresh/update .",
     "introspect": "deno run -A scripts/introspect.ts",
     "test": "deno test --allow-all tests/"

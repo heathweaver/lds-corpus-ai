@@ -1,0 +1,47 @@
+name: Deploy to Deno Deploy
+
+# Build the Fresh/Vite bundle in CI, then publish to Deno Deploy.
+#
+# One-time setup (see DEPLOY.md):
+#   1. Create a Deno Deploy project and set its name in `project:` below.
+#   2. Link this GitHub repo to the project (Deno Deploy dashboard → Git
+#      integration) so the OIDC deploy below is authorized. Alternatively,
+#      set a DENO_DEPLOY_TOKEN secret and pass it to deployctl.
+#   3. In the project's Environment Variables, set the READ-ONLY DB creds and
+#      options: PGHOST, PGPORT, PGDATABASE, PGUSER (lds_corpus_app),
+#      PGPASSWORD, DB_SCHEMA, PGSSLMODE=require, and optionally
+#      ANTHROPIC_API_KEY / ANTHROPIC_MODEL. Never commit these.
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      id-token: write # OIDC auth to Deno Deploy
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Install dependencies
+        run: deno install
+
+      - name: Build Fresh/Vite bundle
+        run: deno task build
+
+      - name: Deploy to Deno Deploy
+        uses: denoland/deployctl@v1
+        with:
+          project: lds-corpus-research
+          entrypoint: _fresh/server.js
+          root: .
