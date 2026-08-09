@@ -1,4 +1,15 @@
+# Fresh / Vite build output
+_fresh/
+dist/
+vite.config.ts.timestamp-*
+
+# Deps
+node_modules/
+
+# Env & secrets
 .env
 .env.local
+
+# Logs / OS
 *.log
 .DS_Store
