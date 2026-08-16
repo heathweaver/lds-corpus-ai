@@ -14,7 +14,7 @@
   },
   "lint": { "rules": { "tags": ["fresh", "recommended"] } },
   "fmt": { "exclude": ["static/", "**/*.md"] },
-  "exclude": ["**/_fresh/*"],
+  "exclude": ["**/_fresh/*", "twiglit-plugin/"],
   "imports": {
     "@/": "./",
     "fresh": "jsr:@fresh/core@^2.3.3",

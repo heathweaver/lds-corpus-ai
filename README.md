@@ -132,8 +132,16 @@ deno task check    # fmt + lint + type-check
 
 ## Roadmap
 
-- **MCP server** (`mcp/`) exposing the corpus + grounded ask (patterned on
-  twiglit-notes' Streamable-HTTP MCP with a read-only Postgres backend).
 - A guarded **theme review/publish** endpoint + UI (promote `draft` →
   `published`).
+- Optional **Twiglit twig consumption** (OAuth PKCE client) — "research this
+  twig" / "save a cited passage into a twig".
 - Topic graphs, annotations, saved workspaces.
+
+## Running inside Twiglit
+
+This app can run as a **Twiglit extension** (like `twiglit-notes`/loam): its UI
+gates to logged-in Twiglit users and it's registered in Twiglit's plugin
+catalog. Set `TWIGLIT_APP_URL` to turn on the session gate; see
+[docs/twiglit-integration.md](docs/twiglit-integration.md) and the ready-to-PR
+files in [`twiglit-plugin/`](twiglit-plugin/).
