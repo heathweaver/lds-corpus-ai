@@ -11,9 +11,13 @@ export function ensureEnvLoaded(): void {
   try {
     loadSync({ envPath, export: true });
   } catch (err) {
-    // Missing file is the normal production case; anything else is a real
-    // fault and should surface rather than masquerade as "no env".
-    if (!(err instanceof Deno.errors.NotFound)) throw err;
+    // Loading a local .env is best-effort: a missing file is the normal
+    // production case, and a sandbox without read/env permission (e.g. a unit
+    // test) should not crash on import. Anything else is a real fault.
+    const benign = err instanceof Deno.errors.NotFound ||
+      err instanceof Deno.errors.NotCapable ||
+      err instanceof Deno.errors.PermissionDenied;
+    if (!benign) throw err;
   }
   loaded = true;
 }
