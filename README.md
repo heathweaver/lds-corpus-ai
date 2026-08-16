@@ -65,6 +65,40 @@ Answer synthesis mirrors twiglit-notes' `lib/consolidate/claude.ts`: forced
 tool-use with a cached system block. With no `ANTHROPIC_API_KEY`, answers are
 extractive (top segments stitched with citations) — no external calls.
 
+## Grounding — not letting the AI invent connections
+
+Faithfulness is enforced by **separating generation from verification**
+(`lib/grounding/`):
+
+- **`verify.ts`** — an independent, skeptical pass judges a single claim
+  against a single source span (`supported` / `partial` / `unsupported`) and
+  must quote the supporting words. It **fails closed**: uncertainty ⇒
+  unsupported, and any "supported" verdict whose quote is not verbatim in the
+  source is downgraded. The writer never grades its own work.
+- **`/research/ask`** generates atomic, individually-cited claims, verifies
+  each, and **drops the unsupported ones** — the response carries a
+  `GroundingReport` (supported/total, dropped count) and only verified
+  citations.
+- **Theme creation** (`lib/themes/create.ts`) generates sections/paragraphs,
+  verifies each paragraph against its cited segments, and persists **only
+  verified** paragraphs as `support_link`s (`verifier_status='verified'`,
+  `support_strength` from the verifier, located source offsets). Themes are
+  written `draft` / `generated` — never auto-published.
+
+  ```bash
+  deno task theme -- --title "Faith and Belief" \
+    --question "How is faith described as a principle of action?" \
+    --collection "Book of Mormon"          # dry run; add --persist to write
+  ```
+
+## Retrieval — hybrid (keyword + semantic)
+
+`lib/retrieval/hybrid.ts` fuses keyword FTS with pgvector nearest-neighbour
+search via **Reciprocal Rank Fusion (RRF)**. The query is embedded with the
+same model the corpus was embedded with (discovered from the `embedding`
+table); with no `EMBED_PROVIDER` configured it degrades to keyword-only. Used
+by `/research/ask` and by theme candidate retrieval.
+
 ## Setup
 
 1. **Create the read-only role** (once, as a DB admin):
@@ -98,14 +132,8 @@ deno task check    # fmt + lint + type-check
 
 ## Roadmap
 
-The v1 spec defers these; the code is structured to slot them in:
-
-- **Semantic / hybrid search** — the schema already has an `embedding` table
-  (pgvector). Search currently uses keyword FTS (`segment.search_vector`);
-  adding a query-side embedding + vector ANN and fusing the two (RRF) is the
-  natural next step.
-- **MCP server** (`mcp/`) exposing the corpus (patterned on twiglit-notes'
-  Streamable-HTTP MCP with a read-only Postgres backend).
-- **Theme creation** — Claude-driven generation of the Zettelkasten theme
-  indexes over segments (`theme_index` + `support_link`).
+- **MCP server** (`mcp/`) exposing the corpus + grounded ask (patterned on
+  twiglit-notes' Streamable-HTTP MCP with a read-only Postgres backend).
+- A guarded **theme review/publish** endpoint + UI (promote `draft` →
+  `published`).
 - Topic graphs, annotations, saved workspaces.

@@ -7,7 +7,7 @@ import {
   supportStrength,
   verifyEntailment,
 } from "../grounding/verify.ts";
-import { searchSegments } from "../corpus/segments.ts";
+import { hybridSearch } from "../retrieval/hybrid.ts";
 import type { Segment } from "../corpus/types.ts";
 
 /**
@@ -202,12 +202,11 @@ export async function createTheme(
 
   // 1) Candidate retrieval (keyword FTS; hybrid/semantic can slot in here).
   const query = [input.title, input.question].filter(Boolean).join(" ");
-  const segments = input.candidates ?? await searchSegments({
-    q: query,
-    collection: input.scope?.collection,
-    author: input.scope?.author,
-    limit: maxSegments,
-  });
+  const segments = input.candidates ??
+    await hybridSearch(query, {
+      collection: input.scope?.collection,
+      author: input.scope?.author,
+    }, maxSegments);
 
   const slug = input.slug
     ? slugify(input.slug, "theme")

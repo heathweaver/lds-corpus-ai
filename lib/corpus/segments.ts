@@ -43,7 +43,7 @@ async function requireView(): Promise<void> {
 }
 
 // Shared projection + enrichment joins. `vs` is the segment source row.
-const SELECT = `
+export const SEGMENT_SELECT = `
   vs.segment_id::text          AS id,
   vs.text                      AS text,
   vs.document_id::text         AS document_id,
@@ -57,7 +57,7 @@ const SELECT = `
   ord.seq::float8              AS ordinal
 `;
 
-const JOINS = `
+export const SEGMENT_JOINS = `
   JOIN document d ON d.id = vs.document_id
   LEFT JOIN LATERAL (
     SELECT string_agg(DISTINCT a.preferred_name, ', ') AS author
@@ -73,7 +73,7 @@ const JOINS = `
   ) ord ON true
 `;
 
-interface RawRow {
+export interface RawRow {
   id: string;
   text: string | null;
   document_id: string | null;
@@ -87,7 +87,7 @@ interface RawRow {
   ordinal: number | null;
 }
 
-function toSegment(r: RawRow): Segment {
+export function toSegment(r: RawRow): Segment {
   return {
     id: String(r.id),
     text: r.text ?? "",
@@ -149,10 +149,10 @@ export async function searchSegments(
     : "";
 
   const text = `
-    SELECT ${SELECT}, ${rank} AS _rank
+    SELECT ${SEGMENT_SELECT}, ${rank} AS _rank
     FROM v_segment_source vs
     ${segmentJoin}
-    ${JOINS}
+    ${SEGMENT_JOINS}
     ${where}
     ${orderBy}
     LIMIT ${limit}
@@ -165,9 +165,9 @@ export async function getSegmentById(id: string): Promise<Segment | null> {
   await requireView();
   const sql = getSql();
   const text = `
-    SELECT ${SELECT}
+    SELECT ${SEGMENT_SELECT}
     FROM v_segment_source vs
-    ${JOINS}
+    ${SEGMENT_JOINS}
     WHERE vs.segment_id = $1
     LIMIT 1
   `;
@@ -208,10 +208,10 @@ export async function getSegmentContext(
       UNION
       SELECT id, dist AS pos FROM fwd WHERE dist > 0
     )
-    SELECT ${SELECT}, nbr.pos AS _pos
+    SELECT ${SEGMENT_SELECT}, nbr.pos AS _pos
     FROM nbr
     JOIN v_segment_source vs ON vs.segment_id = nbr.id
-    ${JOINS}
+    ${SEGMENT_JOINS}
     ORDER BY nbr.pos ASC
   `;
   const rows = await sql.unsafe(text, [id, window] as never[]) as unknown as
@@ -234,9 +234,9 @@ export async function getDocument(
   await requireView();
   const sql = getSql();
   const text = `
-    SELECT ${SELECT}
+    SELECT ${SEGMENT_SELECT}
     FROM v_segment_source vs
-    ${JOINS}
+    ${SEGMENT_JOINS}
     WHERE vs.document_id = $1
     ORDER BY ord.seq ASC NULLS LAST, vs.segment_key ASC
     LIMIT ${Math.min(limit, 5000)}

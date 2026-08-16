@@ -1,5 +1,6 @@
-import { getSegmentById, searchSegments } from "./segments.ts";
+import { getSegmentById } from "./segments.ts";
 import { linkedSegmentIds, searchIndexes } from "./indexes.ts";
+import { hybridSearch } from "../retrieval/hybrid.ts";
 import { composeAnswer } from "./answer.ts";
 import type { AskResult, IndexNote, Segment } from "./types.ts";
 
@@ -57,13 +58,13 @@ export async function ask(input: AskInput): Promise<AskResult> {
   }
 
   // 3) Fall back to direct segment search when indexes yielded nothing.
+  //    Hybrid (keyword + semantic when configured) maximizes recall here.
   if (segments.length === 0) {
-    segments = await searchSegments({
-      q: question,
-      collection: input.collection,
-      author: input.author,
-      limit: maxSegments,
-    });
+    segments = await hybridSearch(
+      question,
+      { collection: input.collection, author: input.author },
+      maxSegments,
+    );
     mode = "segment";
   }
 
