@@ -83,12 +83,25 @@ export interface RetrievalScope {
   author?: string | null;
 }
 
+/** A previously-asked, near-duplicate question (query dedup). */
+export interface SimilarQuery {
+  question: string;
+  /** pg_trgm similarity, 0..1. */
+  similarity: number;
+  groundedness: number | null;
+  mode: string | null;
+  askedAt: string;
+}
+
 export interface AskResult {
   answer: string;
   indexes: IndexNote[];
   citations: Citation[];
   scope: RetrievalScope;
   grounding: GroundingReport;
+  /** Near-duplicate prior questions, if any — so callers can reuse instead of
+   * re-running. Empty when demand logging isn't configured. */
+  similar: SimilarQuery[];
 }
 
 export interface SearchFilters {

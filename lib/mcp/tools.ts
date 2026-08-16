@@ -8,6 +8,7 @@ import { getIndex, searchIndexes } from "../corpus/indexes.ts";
 import { hybridSearch } from "../retrieval/hybrid.ts";
 import { createTheme } from "../themes/create.ts";
 import { anthropicClient, llmAvailable } from "../grounding/llm.ts";
+import { computeMetrics } from "../metrics/metrics.ts";
 import type { Segment } from "../corpus/types.ts";
 
 /**
@@ -156,6 +157,13 @@ export const TOOLS: McpTool[] = [
         persist: false,
       }, anthropicClient());
     },
+  },
+  {
+    name: "corpus_metrics",
+    description:
+      "Report knowledge-base health: coverage (segments cited, themes), faithfulness (verified support ratio, avg strength), freshness, and demand (question groundedness). Use to see what the encyclopedia covers well and where it is weak.",
+    inputSchema: { type: "object", properties: {}, required: [] },
+    handler: () => computeMetrics(),
   },
   // --- Deep-research contract pair (ChatGPT/others) -------------------------
   {

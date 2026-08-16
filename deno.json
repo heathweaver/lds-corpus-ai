@@ -10,6 +10,7 @@
     "update": "deno run -A -r jsr:@fresh/update .",
     "introspect": "deno run -A scripts/introspect.ts",
     "theme": "deno run -A scripts/create-theme.ts",
+    "metrics": "deno run -A scripts/metrics.ts",
     "test": "deno test --allow-all tests/"
   },
   "lint": { "rules": { "tags": ["fresh", "recommended"] } },

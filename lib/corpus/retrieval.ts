@@ -2,6 +2,8 @@ import { getSegmentById } from "./segments.ts";
 import { linkedSegmentIds, searchIndexes } from "./indexes.ts";
 import { hybridSearch } from "../retrieval/hybrid.ts";
 import { composeAnswer } from "./answer.ts";
+import { logResearchQuery } from "../metrics/log.ts";
+import { findSimilarQuestions } from "../metrics/dedup.ts";
 import type { AskResult, IndexNote, Segment } from "./types.ts";
 
 export interface AskInput {
@@ -74,11 +76,16 @@ export async function ask(input: AskInput): Promise<AskResult> {
     segments,
   );
 
-  return {
+  // Query dedup: surface near-duplicate prior questions BEFORE logging this one
+  // (so it can't match itself), so callers can reuse instead of re-running.
+  const similar = await findSimilarQuestions(question);
+
+  const result: AskResult = {
     answer,
     indexes: mode === "index" ? followed : indexes,
     citations,
     grounding,
+    similar,
     scope: {
       mode,
       indexesFollowed: (mode === "index" ? followed : indexes).map((i) =>
@@ -89,4 +96,8 @@ export async function ask(input: AskInput): Promise<AskResult> {
       author: input.author ?? null,
     },
   };
+
+  // Demand signal for curation (best-effort; no-op without a writable role).
+  await logResearchQuery(question, result);
+  return result;
 }

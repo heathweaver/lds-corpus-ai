@@ -52,7 +52,8 @@ function buildConfig(): postgres.Options<Record<string, never>> | null {
     idle_timeout: 20,
     prepare: firstEnv("PG_DISABLE_PREPARE") !== "1",
     ssl: sslOption(),
-    connection: { search_path: SCHEMA },
+    // Include public so pgvector's `vector` type/operators and pg_trgm resolve.
+    connection: { search_path: `${SCHEMA}, public` },
     // Read-only guard: the role is read-only in Postgres, but declare intent
     // at the session level too so any accidental write fails loudly.
     transform: undefined,

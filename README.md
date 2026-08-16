@@ -38,6 +38,7 @@ searches `lds_corpus.v_segment_source` directly.
 | GET | `/documents/:id` | Document metadata + ordered segments |
 | GET | `/search?q=&collection=&author=&dateFrom=&dateTo=` | Faceted segment search |
 | GET | `/healthz` | Liveness + DB/MCP-config probe |
+| GET | `/metrics` | KB health: coverage / faithfulness / freshness / demand |
 | POST | `/mcp` | MCP (JSON-RPC) research endpoint for AI runtimes — see below |
 
 ## Architecture

@@ -30,12 +30,20 @@ interface Grounding {
   claimsDropped: string[];
   score: number;
 }
+interface SimilarQuery {
+  question: string;
+  similarity: number;
+  groundedness: number | null;
+  mode: string | null;
+  askedAt: string;
+}
 interface AskResult {
   answer: string;
   indexes: IndexNote[];
   citations: Citation[];
   scope: Scope;
   grounding: Grounding;
+  similar: SimilarQuery[];
 }
 interface Segment {
   id: string;
@@ -199,6 +207,27 @@ export default function ResearchApp() {
                   </>
                 )}
             </div>
+            {result.similar.length > 0 && (
+              <div class="similar">
+                A very similar question was asked before — reuse or refine:
+                <ul>
+                  {result.similar.map((s) => (
+                    <li key={s.question}>
+                      <button
+                        type="button"
+                        class="link"
+                        onClick={() => setQuestion(s.question)}
+                      >
+                        {s.question}
+                      </button>{" "}
+                      <span class="muted small">
+                        ({Math.round(s.similarity * 100)}% match)
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
             <div class="scope">
               Retrieval: <strong>{result.scope.mode}</strong> ·{" "}
               {result.scope.segmentCount} segment(s)
