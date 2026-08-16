@@ -37,7 +37,8 @@ searches `lds_corpus.v_segment_source` directly.
 | GET | `/segments/:id?window=` | A segment in surrounding context |
 | GET | `/documents/:id` | Document metadata + ordered segments |
 | GET | `/search?q=&collection=&author=&dateFrom=&dateTo=` | Faceted segment search |
-| GET | `/healthz` | Liveness + DB-config probe |
+| GET | `/healthz` | Liveness + DB/MCP-config probe |
+| POST | `/mcp` | MCP (JSON-RPC) research endpoint for AI runtimes — see below |
 
 ## Architecture
 
@@ -145,3 +146,9 @@ gates to logged-in Twiglit users and it's registered in Twiglit's plugin
 catalog. Set `TWIGLIT_APP_URL` to turn on the session gate; see
 [docs/twiglit-integration.md](docs/twiglit-integration.md) and the ready-to-PR
 files in [`twiglit-plugin/`](twiglit-plugin/).
+
+The **Twiglit runtime (its AI) researches the corpus via `POST /mcp`** — a
+JSON-RPC MCP endpoint exposing the same verified tools (`research_ask`,
+`generate_theme`, `search_corpus`, …), authenticated with a service token
+(`MCP_SERVICE_TOKEN`). So both a human researcher (the three-pane UI) and the
+runtime hit the same grounded core.

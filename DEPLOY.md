@@ -42,6 +42,8 @@ Use the **read-only** role. Never commit these.
 | `PGSSLMODE` | `require` |
 | `ANTHROPIC_API_KEY` | *(optional — enables Claude answer synthesis)* |
 | `ANTHROPIC_MODEL` | *(optional — default `claude-sonnet-5`)* |
+| `MCP_SERVICE_TOKEN` | *(optional — enables `POST /mcp` for the Twiglit runtime / AI clients; unset = disabled)* |
+| `TWIGLIT_APP_URL` | *(optional — turns on the Twiglit session gate; see docs/twiglit-integration.md)* |
 
 > **Network:** the deploy environment must be able to reach `ssc.pm:5433`.
 > Without `ANTHROPIC_API_KEY`, `/research/ask` returns a grounded **extractive**

@@ -39,6 +39,44 @@ exact edits are in **`twiglit-plugin/`** (see `twiglit-plugin/PATCH.md`):
 - edits to `lib/plugins/catalog.ts`, `lib/mcp/registry.ts`,
   `lib/api/v1/openapi-routes.ts`, and optionally `lib/marketplace/catalog.ts`
 
+## Runtime research via MCP — the Twiglit AI querying the corpus
+
+The Twiglit runtime (and any AI client) runs rigorous research against the
+corpus through the app's own **MCP endpoint**, `POST /mcp` — a JSON-RPC 2.0
+Model Context Protocol server that reuses the same verified core as the human
+UI. It authenticates with a **service token** (`Authorization: Bearer
+<MCP_SERVICE_TOKEN>`), separate from the browser session gate, and `/mcp` is
+exempt from that gate. Fails closed: unset `MCP_SERVICE_TOKEN` ⇒ endpoint
+disabled (503).
+
+Tools (`tools/list`):
+
+| Tool | Purpose |
+| ---- | ------- |
+| `research_ask` | Grounded answer to a research question; every claim verified, unsupported claims dropped; returns citations + groundedness report |
+| `generate_theme` | Draft a rigorous theme document; every paragraph verified against cited sources (dry run) |
+| `search_corpus` | Hybrid keyword+semantic search for concepts/stories/quotes |
+| `get_segment` / `get_document` | Read sources in context, with provenance |
+| `search_indexes` / `get_index` | Browse the Zettelkasten theme indexes |
+| `search` / `fetch` | Deep-research contract pair (ChatGPT-style clients) |
+
+Example:
+
+```bash
+curl -sX POST "$APP_URL/mcp" \
+  -H "authorization: Bearer $MCP_SERVICE_TOKEN" \
+  -H "content-type: application/json" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call",
+       "params":{"name":"research_ask","arguments":{"question":"How is faith described as a principle of action?"}}}'
+```
+
+Wiring into the Twiglit runtime: point the runtime's tool layer at
+`$APP_URL/mcp` with the service token. Because Twiglit's own extension model is
+a compiled catalog (it does not auto-register external MCP servers), the
+runtime either (a) calls these endpoints directly as a service, or (b) Twiglit
+adds thin internal tools that proxy to them. Both use the same `/mcp` contract
+above.
+
 ## Optional: consuming Twiglit twigs (future)
 
 If the app should read the user's twigs (e.g. "research this twig" or "save a

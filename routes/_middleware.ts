@@ -1,8 +1,9 @@
 import { define } from "../utils.ts";
 import { authHandoffUrl, gate, publicRequestUrl } from "../lib/twiglit/auth.ts";
 
-/** Paths reachable without a Twiglit session (health probe). */
-const PUBLIC_PATHS = new Set(["/healthz"]);
+/** Paths reachable without a Twiglit session. `/mcp` has its own service-token
+ * auth (machine callers, e.g. the Twiglit runtime); `/healthz` is the probe. */
+const PUBLIC_PATHS = new Set(["/healthz", "/mcp"]);
 
 /**
  * Twiglit session gate. When TWIGLIT_APP_URL is configured, every route below
