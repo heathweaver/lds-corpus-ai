@@ -68,12 +68,16 @@ export async function ask(input: AskInput): Promise<AskResult> {
   }
 
   // 4) Compose a grounded answer from the actual segment text.
-  const { answer, citations } = await composeAnswer(question, segments);
+  const { answer, citations, grounding } = await composeAnswer(
+    question,
+    segments,
+  );
 
   return {
     answer,
     indexes: mode === "index" ? followed : indexes,
     citations,
+    grounding,
     scope: {
       mode,
       indexesFollowed: (mode === "index" ? followed : indexes).map((i) =>

@@ -29,6 +29,7 @@ export type {
   AskResult,
   Citation,
   DocumentDetail,
+  GroundingReport,
   IndexNote,
   RetrievalScope,
   SearchFilters,

@@ -23,11 +23,19 @@ interface Scope {
   collection?: string | null;
   author?: string | null;
 }
+interface Grounding {
+  mode: "verified" | "extractive";
+  claimsTotal: number;
+  claimsSupported: number;
+  claimsDropped: string[];
+  score: number;
+}
 interface AskResult {
   answer: string;
   indexes: IndexNote[];
   citations: Citation[];
   scope: Scope;
+  grounding: Grounding;
 }
 interface Segment {
   id: string;
@@ -172,6 +180,25 @@ export default function ResearchApp() {
         {result && (
           <div class="answer">
             <div class="answer-text">{result.answer}</div>
+            <div class={`grounding ${result.grounding.mode}`}>
+              {result.grounding.mode === "verified"
+                ? (
+                  <>
+                    ✓ Verified grounding: {result.grounding.claimsSupported}/
+                    {result.grounding.claimsTotal} claims supported by sources
+                    {result.grounding.claimsDropped.length > 0 && (
+                      <span class="dropped">
+                        {` · ${result.grounding.claimsDropped.length} unsupported statement(s) removed`}
+                      </span>
+                    )}
+                  </>
+                )
+                : (
+                  <>
+                    Extractive answer — passages quoted directly from sources.
+                  </>
+                )}
+            </div>
             <div class="scope">
               Retrieval: <strong>{result.scope.mode}</strong> ·{" "}
               {result.scope.segmentCount} segment(s)

@@ -57,6 +57,21 @@ export interface Citation {
   sourceUrl: string | null;
   /** The quoted text backing this citation. */
   quote: string;
+  /** Verifier verdict for the claim this citation supports. */
+  status?: "supported" | "partial";
+  confidence?: number;
+}
+
+/** Transparency report on how well the answer is grounded in sources. */
+export interface GroundingReport {
+  /** "verified" = every shown claim passed entailment; "extractive" = quotes only. */
+  mode: "verified" | "extractive";
+  claimsTotal: number;
+  claimsSupported: number;
+  /** Claims removed because no cited source supported them. */
+  claimsDropped: string[];
+  /** claimsSupported / claimsTotal (1 when there were no claims). */
+  score: number;
 }
 
 export interface RetrievalScope {
@@ -73,6 +88,7 @@ export interface AskResult {
   indexes: IndexNote[];
   citations: Citation[];
   scope: RetrievalScope;
+  grounding: GroundingReport;
 }
 
 export interface SearchFilters {
